@@ -1,0 +1,357 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Primitive Modeler</title>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+        canvas {
+            width: 100%;
+            height: 100%
+        }
+        .gui {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            height: 400px;
+            width: 200px;
+            background: #000;
+            color: #CCC;
+            border: 1px solid blue;
+            padding: 5px;
+        }
+
+        .gui-button {
+            height: 40px;
+            line-height: 40px;
+            width: 70px;
+            background: #222;
+            color: #CCC;
+            border: 1px solid blue;
+            padding: 5px;
+            text-align: center;
+            float: left;
+        }
+
+        .gui-button:hover {
+            background: #444;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+    <script src="js/three.min.js" type="text/javascript"></script>
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+
+			varying vec2 vUv;
+
+			void main()
+			{
+				vUv = uv;
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+				gl_Position = projectionMatrix * mvPosition;
+			}
+
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+
+        uniform float time;
+        uniform vec2 mouse;
+        uniform vec2 resolution;
+
+        void main( void ) {
+            float g = normalize(dot( (gl_FragCoord.x * gl_FragCoord.y) , (gl_FragCoord.x / gl_FragCoord.y)));
+            gl_FragColor = vec4(1.0,cos(time),sin(time),1.0)* normalize(dot(vec4(0.0,sin(time),g,1.0),vec4(0.0,1.0,1.0,1.0))) *sin((gl_FragCoord.y/ resolution.y ) * 90.0 + (gl_FragCoord.x / resolution.y + 10.0) );
+        }
+
+    </script>
+    <script type="text/javascript">
+        var RADPI = Math.PI / 180;
+        function toRads(degrees) { return degrees * RADPI; }
+
+        var scene;
+
+        var PRIMODEL = { version: '0.0.1' };
+
+        PRIMODEL.materialFactory = function(maxAnisotropy) {
+            var hullTexture = THREE.ImageUtils.loadTexture("textures/hull1.jpg");
+            var circuitTexture = THREE.ImageUtils.loadTexture("textures/microscheme.png");
+            var textures = [ hullTexture, circuitTexture ]
+            textures.forEach(function (texture) {
+                texture.anisotropy = maxAnisotropy;
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            });
+
+            this.makeMaterial = function(type) {
+                if (type == 'hull') {
+                    return new THREE.MeshPhongMaterial({ color: 0xffffff, map: hullTexture });
+                } else if (type == 'circuit') {
+                    return new THREE.MeshPhongMaterial({ color: 0xffffff, map: circuitTexture });
+                }
+            };
+        };
+
+        PRIMODEL.primitiveTypes = {
+            cube: 'cube',
+            sphere: 'sphere',
+            cylinder: 'cylinder'
+        };
+
+        PRIMODEL.primitiveFactory = function() {
+            var types = PRIMODEL.primitiveTypes;
+            this.makePrimitive = function(type, material) {
+                if (type == types.cube) {
+                    var geom = new THREE.BoxGeometry(200, 200, 200, 4);
+                    var obj = new THREE.Mesh(geom, material);
+                    obj.position.x = Math.random() * 300;
+                    obj.position.y = Math.random() * 300;
+                    parts.push(obj);
+                    scene.add(obj);
+                } else if (type == types.sphere) {
+                    var geom = new THREE.Mesh(new THREE.DodecahedronGeometry(150, 0), material) ;
+                    var obj = new THREE.Mesh(geom, material);
+                    obj.position.x = Math.random() * 300;
+                    obj.position.y = Math.random() * 300;
+                    parts.push(obj);
+                    scene.add(obj);
+                } else if (type == types.cylinder) {
+                    var geom = new THREE.Mesh(new THREE.CylinderGeometry(100, 100, 200, 32), material)
+                    var obj = new THREE.Mesh(geom, material);
+                    obj.position.x = Math.random() * 300;
+                    obj.position.y = Math.random() * 300;
+                    parts.push(obj);
+                    scene.add(obj);
+                }
+            };
+        };
+
+        var parts = [];
+
+        function save_parts() {
+            parts.forEach(function(part) {
+                console.log(JSON.stringify(part));
+            });
+        }
+
+        function load_parts() {
+
+        }
+
+        $(function() {
+            var PI2 = Math.PI * 2;
+            var selectedObject;
+
+            // so you can click on stuff
+            function onDocumentMouseDown( event ) {
+				event.preventDefault();
+				var vector = new THREE.Vector3();
+				vector.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1, 0.5 );
+				vector.unproject( camera );
+				raycaster.ray.set( camera.position, vector.sub( camera.position ).normalize() );
+				var intersects = raycaster.intersectObjects( parts );
+				if ( intersects.length > 0 ) {
+					intersects[ 0 ].object.material.color.setHex( Math.random() * 0xffffff );
+                    selectedObject = intersects[0].object;
+                    console.log(selectedObject);
+				}
+				/*
+				// Parse all the faces
+				for ( var i in intersects ) {
+					intersects[ i ].face.material[ 0 ].color.setHex( Math.random() * 0xffffff | 0x80000000 );
+				}
+				*/
+			}
+            raycaster = new THREE.Raycaster();
+
+            scene = new THREE.Scene();
+            scene.add( new THREE.AmbientLight( 0x999999 ) );
+            var light = new THREE.DirectionalLight( 0x999999 );
+            light.position.set( 0, 0, 100 );
+            scene.add( light );
+            var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 20000);
+            var renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            var attributes = { displacement: { type: 'f', value: [] } };
+            var clock = new THREE.Clock();
+            var rot = false;
+            var materialFactory = new PRIMODEL.materialFactory(renderer.getMaxAnisotropy());
+            var primitiveFactory = new PRIMODEL.primitiveFactory();
+
+//            var engine1 = new THREE.Mesh(new THREE.CylinderGeometry(140, 60, 200, 32), undefined);
+//            engine1.position.x = 300;
+//            engine1.position.y = 280;
+//            engine1.position.z = 200;
+//            engine1.updateMatrix();
+//            parts.push(engine1);
+//
+//            var engine2 = new THREE.Mesh(new THREE.CylinderGeometry(140, 60, 200, 32), undefined);
+//            engine2.position.x = -300;
+//            engine2.position.y = 280;
+//            engine2.position.z = 200;
+//            engine2.updateMatrix();
+//            parts.push(engine2);
+//
+//            var cockpit = new THREE.Mesh(new THREE.DodecahedronGeometry(150, 0), undefined) ;
+//            cockpit.position.y = -20;
+//            cockpit.updateMatrix();
+//            parts.push(cockpit);
+//
+//            var gun1 = new THREE.Mesh(new THREE.BoxGeometry(25, 100, 25, 4), undefined);
+//            gun1.position.x = 125;
+//            gun1.position.y = -150;
+//            gun1.updateMatrix();
+//            parts.push(gun1);
+//
+//            var gun2 = new THREE.Mesh(new THREE.BoxGeometry(25, 100, 25, 4), undefined);
+//            gun2.position.x = -125;
+//            gun2.position.y = -150;
+//            gun2.updateMatrix();
+//            parts.push(gun2);
+//
+//            var engineSupport1 = new THREE.Mesh(new THREE.BoxGeometry(50, 300, 40, 4), undefined);
+//            engineSupport1.position.x = 195;
+//            engineSupport1.position.y = 155;
+//            engineSupport1.position.z = 100;
+//            engineSupport1.rotation.y = toRads(-45);
+//            engineSupport1.rotation.z = toRads(-60);
+//            engineSupport1.updateMatrix();
+//            parts.push(engineSupport1);
+//
+//            var engineSupport2 = new THREE.Mesh(new THREE.BoxGeometry(50, 300, 40, 4), undefined);
+//            engineSupport2.position.x = -195;
+//            engineSupport2.position.y = 155;
+//            engineSupport2.position.z = 100;
+//            engineSupport2.rotation.y = toRads(45);
+//            engineSupport2.rotation.z = toRads(60);
+//            engineSupport2.updateMatrix();
+//            parts.push(engineSupport2);
+//
+//            var finalHull = new THREE.Mesh(new THREE.BoxGeometry(300, 250, 80), materialFactory.makeMaterial('hull'));
+//            finalHull.updateMatrix();
+//            parts.forEach(function(part) {
+//                finalHull.geometry.merge(part.geometry, part.matrix);
+//            });
+//
+//            finalHull.rotation.z = toRads(180);
+//            parts = []
+//            parts.push(finalHull);
+//
+//            scene.add(finalHull);
+            camera.position.z = 2000;
+
+            var render = function () {
+                requestAnimationFrame(render);
+                if (rot) {
+                    finalHull.rotation.x += 0.01;
+                    finalHull.rotation.y += 0.01;
+                }
+                var delta = 5 * clock.getDelta();
+                renderer.render(scene, camera);
+            };
+            render();
+
+            // -----------------------------------------------------------------------------------------------------------------
+            // CONTROLS
+
+            var speed = 50;
+            var dimension = 0;
+            this.keydown = function( event ) {
+                if ( event.altKey ) {
+                    return;
+                }
+                var scale_inc = 1;
+                switch ( event.keyCode ) {
+                    case 16: /* shift */ this.movementSpeedMultiplier = .1; break;
+                    case 87: /*W*/ camera.position.y += speed; break;
+                    case 83: /*S*/ camera.position.y -= speed; break;
+                    case 65: /*A*/ camera.position.x -= speed; break;
+                    case 68: /*D*/ camera.position.x += speed; break;
+                    case 82: /*R*/ camera.position.z += speed; break;
+                    case 70: /*F*/ camera.position.z -= speed; break;
+
+                    case 98: selectedObject.rotation.x += toRads(15); break;
+                    case 104: selectedObject.rotation.x -= toRads(15); break;
+
+                    case 100: selectedObject.rotation.y += toRads(15); break;
+                    case 102: selectedObject.rotation.y -= toRads(15); break;
+
+                    case 103: selectedObject.rotation.z -= toRads(15); break; //7
+                    case 105: selectedObject.rotation.z += toRads(15); break; //9
+
+                    case 73: selectedObject.position.y += 25; break;
+                    case 75: selectedObject.position.y -= 25; break;
+
+                    case 74: selectedObject.position.x -= 25; break;
+                    case 76: selectedObject.position.x += 25; break;
+
+                    case 101: selectedObject.rotation.z = selectedObject.rotation.y = selectedObject.rotation.x = 0; break;
+
+                    case 109:
+                        scale_inc = -1;
+                    case 107:
+                        switch (dimension) {
+                            case 0 : selectedObject.scale.x += scale_inc; break;
+                            case 1 : selectedObject.scale.y += scale_inc; break;
+                            case 2 : selectedObject.scale.z += scale_inc; break;
+                        };
+                        break;
+
+                    case 106: if (++dimension > 2) dimension = 0; break; // keypad star changes scale dimension
+
+
+                    case 32: rot = !rot;
+        //			case 38: /*up*/ this.moveState.pitchUp = 1; break;
+        //			case 40: /*down*/ this.moveState.pitchDown = 1; break;
+        //			case 37: /*left*/ this.moveState.yawLeft = 1; break;
+        //			case 39: /*right*/ this.moveState.yawRight = 1; break;
+        //			case 81: /*Q*/ this.moveState.rollLeft = 1; break;
+        //			case 69: /*E*/ this.moveState.rollRight = 1; break;
+                }
+            };
+
+            renderer.domElement.addEventListener( 'contextmenu', function ( event ) { event.preventDefault(); }, false );
+
+            document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+
+        //	renderer.domElement.addEventListener( 'mousemove', bind( this, this.mousemove ), false );
+        //	renderer.domElement.addEventListener( 'mousedown', bind( this, this.mousedown ), false );
+        //	renderer.domElement.addEventListener( 'mouseup',   bind( this, this.mouseup ), false );
+            window.addEventListener( 'keydown', this.keydown, false );
+        //	window.addEventListener( 'keyup',   bind( this, this.keyup ), false );
+
+            $('.gui-button').click(function() {
+                var data = $(this).data();
+                if (data.action == 'add-object') {
+                    var shape = data.shape;
+                    if (shape == PRIMODEL.primitiveTypes.cube)
+                        primitiveFactory.makePrimitive(
+                                PRIMODEL.primitiveTypes.cube,
+                                materialFactory.makeMaterial('circuit'));
+                    else if (shape == PRIMODEL.primitiveTypes.sphere)
+                        primitiveFactory.makePrimitive(
+                                PRIMODEL.primitiveTypes.sphere,
+                                materialFactory.makeMaterial('circuit'));
+                    else if (shape == PRIMODEL.primitiveTypes.cylinder)
+                        primitiveFactory.makePrimitive(
+                                PRIMODEL.primitiveTypes.cylinder,
+                                materialFactory.makeMaterial('circuit'));
+                } else if (data.action == 'save') {
+                    save_parts();
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class='gui'>
+        <div class="gui-button" data-action="add-object" data-shape="cube">Cube</div>
+        <div class="gui-button" data-action="add-object" data-shape="sphere">Sphere</div>
+        <div class="gui-button" data-action="add-object" data-shape="cylinder">Cylinder</div>
+        <div style="clear: both"><br/><br/><hr><br/><br/></div>
+        <div class="gui-button" data-action="save">Save</div>
+    </div>
+</body>
+</html>

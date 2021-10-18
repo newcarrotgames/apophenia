@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>APOPHENIA ver 0.0.1a</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000;
+				margin: 0px;
+                padding: 0px;
+				overflow: hidden;
+			}
+            #hud {
+                position: absolute;
+                bottom : 1%;
+                background-color : #FF0000;
+                width: 100px;
+                color: #000;
+                font-size: 14px;
+                padding-left: 6px;
+            }
+		</style>
+        <!-- libs -->
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+        <script src="js/three.min.js"></script>
+
+        <!-- game code includes -->
+        <script src="js/lib/apophenia.js"></script>
+        <script src="js/lib/factories.js"></script>
+        <script src="js/lib/entity.js"></script>
+		<script src="js/lib/controls.js"></script>
+        <script src="js/lib/EntityManager.js"></script>
+        <script src="js/lib/State.js"></script>
+        <script src="js/lib/StarField.js"></script>
+
+        <!-- misc stuff for debugging -->
+		<script src="js/Detector.js"></script>
+		<script src="js/stats.min.js"></script>
+
+        <script>
+            // TODO: none of this code should be here
+            $(function() {
+                var ents = new APOPHENIA.EntityManager();
+                var state = new APOPHENIA.State(ents);
+                APOPHENIA.init(ents, state);
+                var player = new APOPHENIA.player();
+                ents.add(player);
+                var starField = new APOPHENIA.StarField();
+                starField.makeParticles();
+                for (var i = 0; i != 250; i++) {
+                    var roid = new APOPHENIA.Asteroid();
+                    ents.add(roid);
+                }
+                state.setState(APOPHENIA.gameStates.SPACE);
+            });
+		</script>
+	</head>
+	<body></body>
+</html>
